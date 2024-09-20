@@ -16,6 +16,9 @@ struct CSpellExtension {
 // TODO: Make an executable file as stated in https://medium.com/@zetavg/howto-port-the-vscode-code-spell-checker-cspell-plugin-to-sublime-6a7f71fad462
 // Make a script and run it as the binary name
 // Take care of the OS version though
+// Run it using "node <path to bin>" and specify where the node_modules are ~/.local/share/zed/extensions/work/cspell/cspell-vscode-4.0.13/extension
+// Or run it directly from ~/.local/share/zed/extensions/work/cspell/cspell-vscode-4.0.13/extension
+// Then make sure all the actions/config work properly
 
 impl CSpellExtension {
     #[allow(dead_code)]
