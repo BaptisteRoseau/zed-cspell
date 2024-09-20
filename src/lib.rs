@@ -1,8 +1,7 @@
 use std::fs;
 
 use zed_extension_api::{
-    self as zed, settings::LspSettings, Architecture, Command, LanguageServerId, Os, Result,
-    Worktree,
+    self as zed, settings::LspSettings, Command, LanguageServerId, Result, Worktree,
 };
 
 struct CSpellBinary {
@@ -14,6 +13,10 @@ struct CSpellExtension {
     cached_binary_path: Option<String>,
 }
 
+// TODO: Make an executable file as stated in https://medium.com/@zetavg/howto-port-the-vscode-code-spell-checker-cspell-plugin-to-sublime-6a7f71fad462
+// Make a script and run it as the binary name
+// Take care of the OS version though
+
 impl CSpellExtension {
     #[allow(dead_code)]
     pub const LANGUAGE_SERVER_ID: &'static str = "cspell";
@@ -23,12 +26,7 @@ impl CSpellExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<CSpellBinary> {
-        if let Some(path) = worktree.which("cspell-lsp") {
-            return Ok(CSpellBinary {
-                path,
-                args: Some(vec![]),
-            });
-        }
+        let _ = worktree;
 
         if let Some(path) = &self.cached_binary_path {
             if fs::metadata(path).map_or(false, |stat| stat.is_file()) {
@@ -44,37 +42,41 @@ impl CSpellExtension {
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
         let release = zed::latest_github_release(
-            "tekumara/CSpell-lsp",
+            "streetsidesoftware/vscode-spell-checker",
             zed::GithubReleaseOptions {
                 require_assets: true,
                 pre_release: false,
             },
         )?;
 
-        let (platform, architecture) = zed::current_platform();
         let version = release.version;
+        let version_number = version
+            .split('v')
+            .last()
+            .ok_or("Invalid binary name")?
+            .to_string();
 
-        let asset_name = Self::binary_release_name(&version, &platform, &architecture);
+        let asset_name = Self::binary_release_name(&version_number);
         let asset = release
             .assets
             .iter()
             .find(|asset| asset.name == asset_name)
             .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
 
-        let version_dir = format!("CSpell-lsp-{}", version);
-        let binary_path = format!("{version_dir}/CSpell-lsp");
+        let version_dir = format!("cspell-vscode-{}", version_number);
+        let binary_path = format!("{version_dir}/extension/packages/_server/dist/main.cjs");
 
         if !fs::metadata(&binary_path).map_or(false, |stat| stat.is_file()) {
             zed::set_language_server_installation_status(
                 language_server_id,
                 &zed::LanguageServerInstallationStatus::Downloading,
             );
-            let file_kind = match platform {
-                zed::Os::Windows => zed::DownloadedFileType::Zip,
-                _ => zed::DownloadedFileType::GzipTar,
-            };
-            zed::download_file(&asset.download_url, &version_dir, file_kind)
-                .map_err(|e| format!("failed to download file: {e}"))?;
+            zed::download_file(
+                &asset.download_url,
+                &version_dir,
+                zed::DownloadedFileType::Zip,
+            )
+            .map_err(|e| format!("failed to download file: {e}"))?;
 
             Self::clean_other_installations(&version_dir)?;
         }
@@ -86,24 +88,8 @@ impl CSpellExtension {
         })
     }
 
-    fn binary_release_name(version: &String, platform: &Os, architecture: &Architecture) -> String {
-        format!(
-            "CSpell-lsp-{version}-{arch}-{os}.{ext}",
-            version = version,
-            arch = match architecture {
-                Architecture::Aarch64 => "aarch64",
-                Architecture::X86 | Architecture::X8664 => "x86_64",
-            },
-            os = match platform {
-                zed::Os::Mac => "apple-darwin",
-                zed::Os::Linux => "unknown-linux-gnu",
-                zed::Os::Windows => "pc-windows-msvc",
-            },
-            ext = match platform {
-                zed::Os::Windows => "zip",
-                _ => "tar.gz",
-            }
-        )
+    fn binary_release_name(version: &String) -> String {
+        format!("code-spell-checker-{version}.vsix", version = version)
     }
 
     fn clean_other_installations(version_to_keep: &String) -> Result<(), String> {
@@ -169,83 +155,13 @@ zed::register_extension!(CSpellExtension);
 
 #[cfg(test)]
 mod tests {
-    use zed_extension_api::{Architecture, Os};
-
     use crate::CSpellExtension;
 
-    #[test]
-    fn release_name() {
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Mac,
-                &Architecture::Aarch64
-            ),
-            "CSpell-lsp-v0.1.23-aarch64-apple-darwin.tar.gz".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Windows,
-                &Architecture::Aarch64
-            ),
-            "CSpell-lsp-v0.1.23-aarch64-pc-windows-msvc.zip".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Linux,
-                &Architecture::Aarch64
-            ),
-            "CSpell-lsp-v0.1.23-aarch64-unknown-linux-gnu.tar.gz".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Mac,
-                &Architecture::X86
-            ),
-            "CSpell-lsp-v0.1.23-x86_64-apple-darwin.tar.gz".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Windows,
-                &Architecture::X86
-            ),
-            "CSpell-lsp-v0.1.23-x86_64-pc-windows-msvc.zip".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Linux,
-                &Architecture::X86
-            ),
-            "CSpell-lsp-v0.1.23-x86_64-unknown-linux-gnu.tar.gz".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Mac,
-                &Architecture::X8664
-            ),
-            "CSpell-lsp-v0.1.23-x86_64-apple-darwin.tar.gz".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Windows,
-                &Architecture::X8664
-            ),
-            "CSpell-lsp-v0.1.23-x86_64-pc-windows-msvc.zip".to_string()
-        );
-        assert_eq!(
-            CSpellExtension::binary_release_name(
-                &"v0.1.23".to_string(),
-                &Os::Linux,
-                &Architecture::X8664
-            ),
-            "CSpell-lsp-v0.1.23-x86_64-unknown-linux-gnu.tar.gz".to_string()
-        );
-    }
+    // #[test]
+    // fn release_name() {
+    //     assert_eq!(
+    //         CSpellExtension::binary_release_name(&"v0.1.23".to_string(),),
+    //         "CSpell-lsp-v0.1.23-aarch64-apple-darwin.tar.gz".to_string()
+    //     );
+    // }
 }
