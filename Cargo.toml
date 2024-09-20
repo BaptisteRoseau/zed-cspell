@@ -1,0 +1,12 @@
+[package]
+name = "cspell"
+version = "0.0.2"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "0.1.0"
+log = "0"
