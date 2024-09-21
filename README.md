@@ -6,6 +6,24 @@ This is the engine behind the famous [Code Spell Checker](https://marketplace.vi
 
 ## Installation
 
-You can install this extension directly through Zed's extension marketplace.
+Currently, you need to clone this repository and install this extension using the "Install Dev Extension" button in your editor. Select the whole directory.
+
+This extension relies on `node` and `npm`, which should be installed on your machine beforehand.
 
 ## Configuration
+
+The CSpell extension can be configured through a `.cspell.json` configuration file, which reference can be found [here](https://cspell.org/configuration/).
+
+Additionally, you can configure it in your Zed's settings with the following:
+
+```javascript
+{
+    "lsp": {
+        "cspell": {
+            "initialization_options": {
+                // Your configuration from the reference here
+            }
+        }
+    }
+}
+```

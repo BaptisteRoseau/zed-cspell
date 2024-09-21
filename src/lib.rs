@@ -1,4 +1,5 @@
-use std::fs;
+use std::process::Command as ProcCommand;
+use std::{fmt::format, fs};
 
 use zed_extension_api::{
     self as zed, settings::LspSettings, Command, LanguageServerId, Result, Worktree,
@@ -13,12 +14,23 @@ struct CSpellExtension {
     cached_binary_path: Option<String>,
 }
 
+//FIXME:
+// - The script is not executable: give it 700 permission, but unix cannot be compiled through Zed
+// - The "Add to dictionnary" does not work because it relies on VSCode's configuration path
+// - Install **only** the CSpell dictionnaries from NPM
+
+// Honestly, our best bet is might be to rewrite this plugin is Rust:
+
 // TODO: Make an executable file as stated in https://medium.com/@zetavg/howto-port-the-vscode-code-spell-checker-cspell-plugin-to-sublime-6a7f71fad462
 // Make a script and run it as the binary name
 // Take care of the OS version though
 // Run it using "node <path to bin>" and specify where the node_modules are ~/.local/share/zed/extensions/work/cspell/cspell-vscode-4.0.13/extension
 // Or run it directly from ~/.local/share/zed/extensions/work/cspell/cspell-vscode-4.0.13/extension
 // Then make sure all the actions/config work properly
+
+// For languages, install the node_module corresponding the the languagem: ex @cspell/dict-fr-fr
+// Make a command with the available languages ? Like "Enable French"
+// Or add them to node_modules/@cspell/cspell-bundled-dicts/cspell-default.config.js ?
 
 impl CSpellExtension {
     #[allow(dead_code)]
@@ -67,9 +79,9 @@ impl CSpellExtension {
             .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
 
         let version_dir = format!("cspell-vscode-{}", version_number);
-        let binary_path = format!("{version_dir}/extension/packages/_server/dist/main.cjs");
+        let main_cjs = format!("{version_dir}/extension/packages/_server/dist/main.cjs");
 
-        if !fs::metadata(&binary_path).map_or(false, |stat| stat.is_file()) {
+        if !fs::metadata(&main_cjs).map_or(false, |stat| stat.is_file()) {
             zed::set_language_server_installation_status(
                 language_server_id,
                 &zed::LanguageServerInstallationStatus::Downloading,
@@ -82,7 +94,10 @@ impl CSpellExtension {
             .map_err(|e| format!("failed to download file: {e}"))?;
 
             Self::clean_other_installations(&version_dir)?;
+            Self::install_node_modules(&version_dir)?;
         }
+
+        let binary_path = Self::make_script_linux(version_dir.as_str())?;
 
         self.cached_binary_path = Some(binary_path.clone());
         Ok(CSpellBinary {
@@ -104,6 +119,37 @@ impl CSpellExtension {
                 fs::remove_dir_all(entry.path()).ok();
             }
         }
+        Ok(())
+    }
+
+    /// Make a script because we need to run the command:
+    ///
+    ///     node <extension_install_folder>/extension/packages/_server/dist/main.cjs --stdio
+    ///
+    /// But Zed extension expect an executable relative to the install folder.
+    fn make_script_linux(version_dir: &str) -> Result<String, String> {
+        let content = r#"#!/usr/bin/env bash
+            SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+            node "$SCRIPT_DIR/packages/_server/dist/main.cjs" --stdio "$@""#
+            .to_string();
+        let script_path = format!("{}/extension/cspell-lsp", version_dir);
+        fs::write(&script_path, content)
+            .map_err(|e| format!("failed to write script file: {e}"))?;
+        // let mut permissions = std::fs::File::open(script_path)
+        //     .and_then(|f| f.metadata()).map(|m| m.permissions())
+        //     .map_err(|op| format!("Error while setting up script permissions {op}"))?;
+        // permissions.set_mode(0o700);
+
+        Ok(script_path)
+    }
+
+    // TODO: install ONLY the @cspell dictionaries
+    fn install_node_modules(version_dir: &str) -> Result<(), String> {
+        ProcCommand::new("npm")
+            .arg("install")
+            .current_dir(format!("{version_dir}/extension"))
+            .output()
+            .map_err(|e| format!("failed to install CSpell node modules: {e}"))?;
         Ok(())
     }
 }
@@ -159,12 +205,4 @@ zed::register_extension!(CSpellExtension);
 #[cfg(test)]
 mod tests {
     use crate::CSpellExtension;
-
-    // #[test]
-    // fn release_name() {
-    //     assert_eq!(
-    //         CSpellExtension::binary_release_name(&"v0.1.23".to_string(),),
-    //         "CSpell-lsp-v0.1.23-aarch64-apple-darwin.tar.gz".to_string()
-    //     );
-    // }
 }
