@@ -1,5 +1,5 @@
+use std::fs;
 use std::process::Command as ProcCommand;
-use std::{fmt::format, fs};
 
 use zed_extension_api::{
     self as zed, settings::LspSettings, Command, LanguageServerId, Result, Worktree,
@@ -132,13 +132,16 @@ impl CSpellExtension {
             SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
             node "$SCRIPT_DIR/packages/_server/dist/main.cjs" --stdio "$@""#
             .to_string();
+
         let script_path = format!("{}/extension/cspell-lsp", version_dir);
         fs::write(&script_path, content)
             .map_err(|e| format!("failed to write script file: {e}"))?;
-        // let mut permissions = std::fs::File::open(script_path)
-        //     .and_then(|f| f.metadata()).map(|m| m.permissions())
-        //     .map_err(|op| format!("Error while setting up script permissions {op}"))?;
-        // permissions.set_mode(0o700);
+        //FIXME: 2024-09-21T12:19:58.108038268+02:00 [ERROR] failed to start language server "CSpell": failed to set-up permissions for CSpell script: operation not supported on this platform
+        // ProcCommand::new("chmod")
+        //     .arg("500")
+        //     .arg(&script_path)
+        //     .output()
+        //     .map_err(|e| format!("failed to set-up permissions for CSpell script: {e}"))?;
 
         Ok(script_path)
     }

@@ -10,6 +10,12 @@ Currently, you need to clone this repository and install this extension using th
 
 This extension relies on `node` and `npm`, which should be installed on your machine beforehand.
 
+Once installed, add execution rights to the script (version might differ):
+
+```bash
+chmod 500 ~/.local/share/zed/extensions/work/cspell/cspell-vscode-4.0.13/extension/cspell-lsp
+```
+
 ## Configuration
 
 The CSpell extension can be configured through a `.cspell.json` configuration file, which reference can be found [here](https://cspell.org/configuration/).
