@@ -1,3 +1,4 @@
+use log::info;
 use std::fs;
 use std::process::Command as ProcCommand;
 
@@ -5,8 +6,8 @@ use zed_extension_api::{
     self as zed, settings::LspSettings, Command, LanguageServerId, Result, Worktree,
 };
 
-struct CSpellBinary {
-    path: String,
+struct CSpellCommand {
+    command: String,
     args: Option<Vec<String>>,
 }
 
@@ -16,8 +17,8 @@ struct CSpellExtension {
 
 //FIXME:
 // - The script is not executable: give it 700 permission, but unix cannot be compiled through Zed
-// - The "Add to dictionnary" does not work because it relies on VSCode's configuration path
-// - Install **only** the CSpell dictionnaries from NPM
+// - The "Add to dictionary" does not work because it relies on VSCode's configuration path
+// - Install **only** the CSpell dictionaries from NPM
 
 // Honestly, our best bet is might be to rewrite this plugin is Rust:
 
@@ -40,14 +41,14 @@ impl CSpellExtension {
         &mut self,
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
-    ) -> Result<CSpellBinary> {
+    ) -> Result<CSpellCommand> {
         let _ = worktree;
 
         if let Some(path) = &self.cached_binary_path {
             if fs::metadata(path).map_or(false, |stat| stat.is_file()) {
-                return Ok(CSpellBinary {
-                    path: path.clone(),
-                    args: Some(vec![]),
+                return Ok(CSpellCommand {
+                    command: format!(" || node {}", path.clone()),
+                    args: Some(vec!["--stdio".into()]),
                 });
             }
         }
@@ -70,6 +71,10 @@ impl CSpellExtension {
             .last()
             .ok_or("Invalid binary name")?
             .to_string();
+        info!(
+            "Found version {} and version number {}",
+            version, version_number
+        );
 
         let asset_name = Self::binary_release_name(&version_number);
         let asset = release
@@ -77,6 +82,7 @@ impl CSpellExtension {
             .iter()
             .find(|asset| asset.name == asset_name)
             .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
+        info!("Found asset {}", asset.name);
 
         let version_dir = format!("cspell-vscode-{}", version_number);
         let main_cjs = format!("{version_dir}/extension/packages/_server/dist/main.cjs");
@@ -97,12 +103,13 @@ impl CSpellExtension {
             Self::install_node_modules(&version_dir)?;
         }
 
-        let binary_path = Self::make_script_linux(version_dir.as_str())?;
+        // let binary_path = Self::make_script_linux(version_dir.as_str())?;
+        let binary_path = format!("/home/baptiste/.local/share/zed/extensions/work/cspell/{}/extension/packages/_server/dist/main.cjs", version_dir);
 
         self.cached_binary_path = Some(binary_path.clone());
-        Ok(CSpellBinary {
-            path: binary_path,
-            args: Some(vec![]),
+        Ok(CSpellCommand {
+            command: format!(" || node {}", binary_path),
+            args: Some(vec!["--stdio".into()]),
         })
     }
 
@@ -169,11 +176,11 @@ impl zed::Extension for CSpellExtension {
         language_server_id: &LanguageServerId,
         worktree: &Worktree,
     ) -> Result<Command> {
-        let cspell_binary = self.language_server_binary(language_server_id, worktree)?;
+        let cspell_command = self.language_server_binary(language_server_id, worktree)?;
 
         Ok(zed::Command {
-            command: cspell_binary.path,
-            args: cspell_binary.args.unwrap(),
+            command: cspell_command.command,
+            args: cspell_command.args.unwrap(),
             env: Default::default(),
         })
     }
@@ -207,5 +214,5 @@ zed::register_extension!(CSpellExtension);
 
 #[cfg(test)]
 mod tests {
-    use crate::CSpellExtension;
+    // use crate::CSpellExtension;
 }

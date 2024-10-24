@@ -33,3 +33,16 @@ Additionally, you can configure it in your Zed's settings with the following:
     }
 }
 ```
+
+Since default `Add to dictionary` code action does not work with Zed, a workaround is to define a custom dictionary in your `.cspell.json` configuration file:
+
+```json
+{
+    "dictionaries": ["custom"],
+    "dictionaryDefinitions": [
+        { "name": "custom", "path": "./.cspell_dict.txt" }
+    ]
+}
+```
+
+Then, use `Add to custom dictionary` instead.
