@@ -15,6 +15,9 @@ struct CSpellExtension {
     cached_binary_path: Option<String>,
 }
 
+//TODO: Use builtin NPM installed from the zed_extension_api crate:
+// https://docs.rs/zed_extension_api/latest/zed_extension_api/
+
 //FIXME:
 // - The script is not executable: give it 700 permission, but unix cannot be compiled through Zed
 // - The "Add to dictionary" does not work because it relies on VSCode's configuration path
