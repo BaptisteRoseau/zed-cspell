@@ -1,5 +1,12 @@
 # CSpell Language Server
 
+⚠️⚠️
+This plugin is a WIP, if you are looking for the one registered in Zed marketplace it's <https://github.com/mantou132/zed-cspell>
+
+The goal of this plugin is to make it work without having to manually install CSpell. When working, I might push
+the changes in [mantou132](https://github.com/mantou132)'s repo since it is the one registered in the Marketplace.
+⚠️⚠️
+
 [CSpell Language Server](https://github.com/streetsidesoftware/vscode-spell-checker) support for Zed editor.
 
 This is the engine behind the famous [Code Spell Checker](https://marketplace.visualstudio.com/items?itemName=streetsidesoftware.code-spell-checker) from VSCode.
