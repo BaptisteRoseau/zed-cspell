@@ -1,0 +1,6 @@
+{
+    "dictionaries": ["custom"],
+    "dictionaryDefinitions": [
+        { "name": "custom", "path": "./.cspell_dict.txt" }
+    ]
+}

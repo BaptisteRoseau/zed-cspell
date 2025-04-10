@@ -32,7 +32,7 @@ struct CSpellExtension {
 // Or run it directly from ~/.local/share/zed/extensions/work/cspell/cspell-vscode-4.0.13/extension
 // Then make sure all the actions/config work properly
 
-// For languages, install the node_module corresponding the the languagem: ex @cspell/dict-fr-fr
+// For languages, install the node_module corresponding to the language: ex @cspell/dict-fr-fr
 // Make a command with the available languages ? Like "Enable French"
 // Or add them to node_modules/@cspell/cspell-bundled-dicts/cspell-default.config.js ?
 
@@ -106,7 +106,7 @@ impl CSpellExtension {
             Self::install_node_modules(&version_dir)?;
         }
 
-        // let binary_path = Self::make_script_linux(version_dir.as_str())?;
+        // let binary_path = Self::make_script_Linux(version_dir.as_str())?;
         let binary_path = format!("/home/baptiste/.local/share/zed/extensions/work/cspell/{}/extension/packages/_server/dist/main.cjs", version_dir);
 
         self.cached_binary_path = Some(binary_path.clone());
